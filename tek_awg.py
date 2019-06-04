@@ -85,7 +85,7 @@ class Waveform:
         return self._binary
 
     @classmethod
-    def from_binary(cls, binary: np.ndarray):
+    def from_binary(cls, binary: np.ndarray) -> 'Waveform':
         if binary.dtype == np.uint16:
             result = cls(channel=np.bitwise_and(binary, cls.int_t.channel_mask),
                          marker_1=np.bitwise_and(binary, cls.int_t.marker_1_mask),
@@ -124,7 +124,7 @@ class Waveform:
     def size(self) -> int:
         return max(self.channel.size, self.marker_1.size, self.marker_2.size)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.data_type, self.binary.tobytes()))
 
     def __eq__(self, other) -> bool:
@@ -291,7 +291,7 @@ class TekAwg:
         return cast(MessageBasedResource, self._inst)
 
     @classmethod
-    def connect_to_ip(cls, ip: str, backend='@ni'):
+    def connect_to_ip(cls, ip: str, backend='@ni') -> 'TekAwg':
         """Connect to instrument via VXI-11 and set timeouts etc to meaningful values. The recommended way(by tektronix)
         is to use the raw socket."""
         address = 'TCPIP::{ip}::INSTR'.format(ip=ip)
@@ -300,7 +300,7 @@ class TekAwg:
         return cls(cast(MessageBasedResource, instrument))
 
     @classmethod
-    def connect_raw_visa_socket(cls, ip: str, port: int, backend=None):
+    def connect_raw_visa_socket(cls, ip: str, port: int, backend=None) -> 'TekAwg':
         address = 'TCPIP0::{ip}::{port}::SOCKET'.format(ip=ip, port=port)
         instrument = pyvisa.ResourceManager(backend).open_resource(address,
                                                                    **cls.DEFAULT_RESOURCE_PROPERTIES)
@@ -388,7 +388,7 @@ class TekAwg:
             if block_after_each_chunk:
                 self.wait_until_commands_executed()
 
-    def get_error_queue(self):
+    def get_error_queue(self) -> Sequence[str]:
         err_queue = []
         err_enum = np.uint8(int(self.instrument.query("*ESR?")))
 
@@ -680,7 +680,7 @@ class TekAwg:
         """Sets the current sample rate of the AWG"""
         self.write("FREQ "+str(freq))
 
-    def get_run_mode(self):
+    def get_run_mode(self) -> str:
         """Gets the current running mode of the AWG: SEQ, CONT, TRIG, GAT"""
         return self.query("AWGCONTROL:RMODE?")
 
@@ -695,7 +695,7 @@ class TekAwg:
         else:
             raise RuntimeError('Invalid mode', mode)
 
-    def get_run_state(self):
+    def get_run_state(self) -> str:
         """Gets the current state of the AWG, possible states are:
         stopped, waiting for trigger, or running"""
         state = self.query("AWGControl:RSTate?")
@@ -786,13 +786,13 @@ class TekAwg:
     def set_amplitude(self, amplitude, channel=None):
         self._set_channel_property(':SOURCE{ch}:VOLTAGE {value}', channel, amplitude)
 
-    def get_offset(self, channel=None):
+    def get_offset(self, channel=None) -> Union[float, Sequence[float]]:
         return self._get_channel_property(':SOURCE{ch}:VOLTAGE:OFFSET?', float, channel)
 
     def set_offset(self, offset, channel=None):
         self._set_channel_property(':SOURCE{ch}:VOLTAGE:OFFSET {value}', channel=channel, values=offset)
 
-    def get_marker_high(self, marker: int, channel=None):
+    def get_marker_high(self, marker: int, channel=None) -> Union[float, Sequence[float]]:
         marker = int(marker)
         if marker not in (1, 2):
             raise ValueError('Marker must be in {1, 2}')
@@ -808,7 +808,7 @@ class TekAwg:
         template = ':SOURCE{ch}:MARKER%d:VOLTAGE:HIGH {value}' % marker
         return self._set_channel_property(template, channel=channel, values=voltage)
 
-    def get_marker_low(self, marker: int, channel=None):
+    def get_marker_low(self, marker: int, channel=None) -> Union[float, Sequence[float]]:
         marker = int(marker)
         if marker not in (1, 2):
             raise ValueError('Marker must be in {1, 2}')
@@ -824,21 +824,21 @@ class TekAwg:
         template = ':SOURCE{ch}:MARKER%d:VOLTAGE:LOW {value}' % marker
         return self._set_channel_property(template, channel=channel, values=voltage)
 
-    def get_chan_state(self, channel=None):
+    def get_chan_state(self, channel=None) -> Union[bool, Sequence[bool]]:
         return self._get_channel_property(':OUTPUT{ch}?', channel=channel, converter=lambda x: int(x) == 1)
 
     def set_chan_state(self, state, channel=None):
         """Set whether the channels are on or off, where 0 means off and 1 means on"""
         self._set_channel_property(':OUTPUT{ch} {value}', channel=channel, values=state, value_parser=self._bool_parser)
 
-    def get_raw_state(self, channel=None) -> Sequence[bool]:
+    def get_raw_state(self, channel=None) -> Union[bool, Sequence[bool]]:
         return self._get_channel_property('AWGC:DOUT{ch}:STAT?', channel=channel, converter=lambda x: int(x) == 1)
 
     def set_raw_state(self, state, channel=None):
         self._set_channel_property('AWGC:DOUT{ch}:STAT {value}',
                                    channel=channel, values=state, value_parser=self._bool_parser)
 
-    def get_trig_source(self):
+    def get_trig_source(self) -> str:
         return self.query("TRIG:SOUR?")
 
     def set_trig_source(self, source):
@@ -860,7 +860,7 @@ class TekAwg:
 
     ###################  SEQUENCER ######################
 
-    def get_cur_waveform(self, channel=None):
+    def get_cur_waveform(self, channel=None) -> Union[str, Sequence[str]]:
         template = ':SOURCE{ch}:WAV?'
         return self._get_channel_property(template, converter=str, channel=channel)
 
@@ -873,7 +873,7 @@ class TekAwg:
         template = 'SEQ:ELEM%d:WAV{ch} {value}' % element_index
         self._set_channel_property(template, channel=channel, values=waveform_name)
 
-    def get_seq_element_entries(self, element_index, channel=None):
+    def get_seq_element_entries(self, element_index, channel=None) -> Union[str, Sequence[str]]:
         template = 'SEQ:ELEM%d:WAV{ch}?' % element_index
         self._get_channel_property(template, channel=channel, converter=str)
 
@@ -886,7 +886,7 @@ class TekAwg:
     def get_seq_element_loop_inf(self, element_index) -> bool:
         return int(self.query('SEQuence:ELEMent'+str(element_index)+':LOOP:INFinite?')) == 1
 
-    def get_seq_length(self):
+    def get_seq_length(self) -> int:
         return int(self.query('SEQ:LENGTH?'))
 
     def set_seq_length(self, length):
@@ -894,7 +894,7 @@ class TekAwg:
             raise RuntimeError('Sequence length to large: %d > %d' % (length, self.properties['MAX_SEQUENCE_LENGTH']))
         self.write('SEQ:LENGTH '+str(length))
 
-    def get_seq_element_jmp_ind(self, element_index):
+    def get_seq_element_jmp_ind(self, element_index) -> str:
         tar_type = self.get_seq_element_jmp_type(element_index)
         if tar_type == "IND":
             return self.query('SEQuence:ELEMent'+str(element_index)+':JTARget:INDex?')
@@ -905,7 +905,7 @@ class TekAwg:
         self.set_seq_element_jmp_type(element_index, "ind")
         self.write('SEQuence:ELEMent'+str(element_index)+':JTARget:INDex '+str(target))
 
-    def get_seq_element_jmp_type(self, element_index):
+    def get_seq_element_jmp_type(self, element_index) -> str:
         return self.query('SEQuence:ELEMent'+str(element_index)+':JTARget:TYPE?')
 
     def set_seq_element_jmp_type(self, element_index, tar_type):
@@ -921,7 +921,7 @@ class TekAwg:
     def get_seq_element_wait(self, element_index) -> bool:
         return self.query('SEQuence:ELEMent' + str(element_index) + ':TWA?') == 'ON'
 
-    def get_seq_element(self, element_index):
+    def get_seq_element(self, element_index) -> SequenceEntry:
         queries = [
             "WAV{ch}?".format(ch=ch) for ch in range(1, 1 + self.n_channels)
         ] + [
@@ -989,7 +989,7 @@ class TekAwg:
         else:
             self.write(cmd)
 
-    def get_seq_list(self):
+    def get_seq_list(self) -> Sequence[SequenceEntry]:
         """Get the current list of waveforms in the sequencer"""
         return [self.get_seq_element(i)
                 for i in range(1, 1+self.get_seq_length())]
