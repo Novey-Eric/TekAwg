@@ -302,7 +302,7 @@ class TekAwg:
     @classmethod
     def connect_raw_visa_socket(cls, ip: str, port: int, backend=None) -> 'TekAwg':
         address = 'TCPIP0::{ip}::{port}::SOCKET'.format(ip=ip, port=port)
-        instrument = pyvisa.ResourceManager(backend).open_resource(address,
+        instrument = pyvisa.ResourceManager('C:\\Windows\\System32\\visa64.dll').open_resource(address,
                                                                    **cls.DEFAULT_RESOURCE_PROPERTIES)
         return cls(cast(MessageBasedResource, instrument))
 
@@ -314,6 +314,7 @@ class TekAwg:
 
     def wait_until_commands_executed(self):
         response = self.query('*OPC?')
+        print(type(response))
         if response != '1':
             warnings.warn('Unexpected answer on "*OPC?": %s' % response)
 
@@ -709,7 +710,7 @@ class TekAwg:
 
     def run(self):
         """Start running the AWG"""
-        self.write("AWGControl:RUN")
+        self.write("AWGC:RUN")
 
     def stop(self):
         """Stop the AWG"""
@@ -918,8 +919,22 @@ class TekAwg:
     def get_seq_element_goto_ind(self, element_index) -> int:
         return int(self.query('SEQuence:ELEMent' + str(element_index) + ':GOTO:IND?'))
 
+    def set_seq_elem_goto_ind(self, element: int, target: int):
+        com1 = 'SEQ:ELEM' + str(element) + ':GOTO:STAT 1'
+        self.write(com1)
+        
+        com2 = 'SEQ:ELEM' + str(element) + ':GOTO:IND ' + str(target)
+        self.write(com2)
+
     def get_seq_element_wait(self, element_index) -> bool:
         return self.query('SEQuence:ELEMent' + str(element_index) + ':TWA?') == 'ON'
+
+
+    """State is 0 for off 1 for on"""
+    def set_seq_element_wait(self, elm_index: int, state: int):
+        com = 'SEQ:ELEM' + str(elm_index) + ':TWA ' + str(state)
+        self.write(com)
+
 
     def get_seq_element(self, element_index) -> SequenceEntry:
         queries = [
@@ -1011,3 +1026,35 @@ class TekAwg:
         for element_index, element in zip(position, seq_list):
             cmd.extend(self.set_seq_element(element_index=element_index, seq_element=element, no_write=True))
         self.write_chunked(cmd, 32)
+        
+        
+    def delete_all_waveforms(self):
+        com = "WLIS:WAV:DEL ALL"
+        self.write(com)
+    
+
+    """SUBSEQUENCER COMMANDS """
+    
+    def delete_all_subseq(self):
+        com = "SLIS:SUBS:DEL ALL"
+        self.write(com)
+    
+    def new_subseq(self, name: str, length: int):
+        com = 'SLIS:SUBS:NEW "' + name + '",' + str(length)
+        self.write(com)
+
+    def set_subseq_element(self, subseq_name: str, wave_name: str, elm_index: int, channel_num: int):
+        com = "SLIS:SUBS:ELEM"+str(elm_index) + ":WAV" + str(channel_num) + ' "' + subseq_name + '",' + '"' + wave_name + '"'
+        self.write(com)
+        pass
+
+    def set_subseq_repeat(self, subseq_name: str, index: int, repeat_num: int):
+        com = "SLIS:SUBS:ELEM" + str(index) + ':LOOP:COUN "' + subseq_name + '",' + str(repeat_num)
+        self.write(com)
+
+    """Sets the main sequence to have a subsequence entry"""
+    def set_seq_elm_to_subseq(self, main_seq_ind: int, subseq_name: str):
+        com = "SEQ:ELEM" + str(main_seq_ind)+':SUBS "' + subseq_name + '"'
+        self.write(com)
+    
+
