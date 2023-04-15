@@ -913,6 +913,10 @@ class TekAwg:
         if tar_type.lower() in ["index", "ind", "next", "off"]:
             return self.write('SEQuence:ELEMent'+str(element_index)+':JTARget:TYPE '+str(tar_type))
 
+    #state 0 for off 1 for on
+    def set_seq_element_goto_state(self, element_index, state: int):
+        return self.write('SEQ:ELEM' + str(element_index) + ':GOTO:STAT ' + str(state))
+
     def get_seq_element_goto_state(self, element_index) -> bool:
         return int(self.query('SEQuence:ELEMent' + str(element_index) + ':GOTO:STAT?')) == 1
 
