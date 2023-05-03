@@ -304,6 +304,7 @@ class TekAwg:
         address = 'TCPIP0::{ip}::{port}::SOCKET'.format(ip=ip, port=port)
         instrument = pyvisa.ResourceManager('C:\\Windows\\System32\\visa64.dll').open_resource(address,
                                                                    **cls.DEFAULT_RESOURCE_PROPERTIES)
+        instrument.timeout = None
         return cls(cast(MessageBasedResource, instrument))
 
     def close(self):
